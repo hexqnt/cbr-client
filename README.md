@@ -1,5 +1,8 @@
 # cbr-client
 
+[![CI](https://github.com/hexqnt/cbr-client/actions/workflows/ci.yml/badge.svg)](https://github.com/hexqnt/cbr-client/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/cbr-client.svg)](https://crates.io/crates/cbr-client)
+[![docs.rs](https://docs.rs/cbr-client/badge.svg)](https://docs.rs/cbr-client)
 Неофициальная Rust-библиотека для работы с API сервиса статистических данных Банка России:
 `https://www.cbr.ru/statistics/data-service/APIdocumentation/`.
 
