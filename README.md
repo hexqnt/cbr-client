@@ -11,7 +11,7 @@
 
 ```toml
 [dependencies]
-cbr-client = "0.1.0"
+cbr-client = "0.1.1"
 ```
 
 ## Пример (async)
@@ -37,6 +37,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ## Пример (blocking)
+
+Для блокирующего клиента включите feature `blocking`:
+
+```toml
+[dependencies]
+cbr-client = { version = "0.1.1", features = ["blocking"] }
+```
 
 ```rust
 use cbr_client::{
