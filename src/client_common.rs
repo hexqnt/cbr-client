@@ -1,12 +1,21 @@
 /// Базовый URL API ЦБ РФ.
 pub const DEFAULT_BASE_URL: &str = "https://www.cbr.ru/dataservice";
 
-pub(crate) fn normalize_base_url(base_url: impl AsRef<str>) -> String {
-    let value = base_url.as_ref().trim();
-    if value.is_empty() {
+pub(crate) fn normalize_base_url(base_url: impl Into<String>) -> String {
+    let mut base_url = base_url.into();
+    let without_leading_whitespace = base_url.trim_start();
+
+    if without_leading_whitespace.is_empty() {
         DEFAULT_BASE_URL.to_owned()
     } else {
-        value.trim_end_matches('/').to_owned()
+        let normalized = without_leading_whitespace.trim_end().trim_end_matches('/');
+
+        if without_leading_whitespace.len() != base_url.len() {
+            normalized.to_owned()
+        } else {
+            base_url.truncate(normalized.len());
+            base_url
+        }
     }
 }
 
@@ -150,6 +159,14 @@ mod tests {
     fn normalize_base_url_trims_trailing_slashes() {
         assert_eq!(
             normalize_base_url("https://example.com/api///"),
+            "https://example.com/api"
+        );
+    }
+
+    #[test]
+    fn normalize_base_url_preserves_trimming_with_leading_whitespace() {
+        assert_eq!(
+            normalize_base_url("  https://example.com/api///  "),
             "https://example.com/api"
         );
     }

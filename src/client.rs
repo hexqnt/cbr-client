@@ -76,7 +76,7 @@ impl CbrClientBuilder {
     #[must_use]
     #[inline]
     pub fn base_url(mut self, base_url: impl Into<String>) -> Self {
-        self.base_url = normalize_base_url(base_url.into());
+        self.base_url = normalize_base_url(base_url);
         self
     }
 
@@ -132,7 +132,7 @@ impl CbrClientBuilder {
 
         let http = builder.build().map_err(CbrError::build)?;
         Ok(CbrClient {
-            base_url: normalize_base_url(&self.base_url),
+            base_url: self.base_url,
             http,
         })
     }

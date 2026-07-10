@@ -4,9 +4,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 use crate::client::CbrClientBuilder;
-use crate::client_common::{
-    cbr_endpoint_methods, configure_reqwest_builder, endpoint, normalize_base_url,
-};
+use crate::client_common::{cbr_endpoint_methods, configure_reqwest_builder, endpoint};
 use crate::error::{CbrError, parse_json_body};
 use crate::models::{
     CategoryNewResponse, DataExResponse, DataNewResponse, DataResponse, Dataset,
@@ -114,7 +112,7 @@ impl BlockingCbrClient {
 
         let http = client_builder.build().map_err(CbrError::build)?;
         Ok(Self {
-            base_url: normalize_base_url(&builder.base_url),
+            base_url: builder.base_url,
             http,
         })
     }
