@@ -1,6 +1,6 @@
 [package]
 name = "cbr-client"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["hexqnt <hexqntlab@gmail.com>"]
 description = "Strictly-typed, unofficial Rust client for downloading CBR data."
@@ -10,6 +10,15 @@ repository = "https://github.com/hexqnt/cbr-client"
 documentation = "https://docs.rs/cbr-client"
 keywords = ["cbr", "bank-of-russia", "api-client", "statistics", "finance"]
 categories = ["api-bindings", "web-programming::http-client"]
+include = [
+    "src/**",
+    "Cargo.toml",
+    "README.md",
+    "LICENSE*",
+    "benches/**",
+    "examples/**",
+    "tests/**",
+]
 
 [features]
 default = []
@@ -34,7 +43,7 @@ chrono = { version = "0.4", default-features = false, features = [
 criterion = "0.8"
 httpmock = "0.8"
 serde_urlencoded = "0.7"
-tokio = { version = "1.44", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.52", features = ["macros", "rt-multi-thread"] }
 
 [[bench]]
 name = "query_and_deser"

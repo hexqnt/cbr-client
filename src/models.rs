@@ -8,6 +8,18 @@ use crate::types::{
     MeasureId, ParentRef, PeriodId, Periodicity, PublicationId, RowId, UnitId, Year,
 };
 
+/// Индикатор в ответе `/datasetsEx`.
+pub type DatasetExIndicator = NamedEntity<IndicatorId, IndicatorId>;
+
+/// Разрез `measure_1` в ответе `/datasetsEx`.
+pub type DatasetExMeasure1 = NamedEntity<MeasureId, IndicatorId>;
+
+/// Разрез `measure_2` в ответе `/datasetsEx`.
+pub type DatasetExMeasure2 = NamedEntity<MeasureId, IndicatorId>;
+
+/// Единица измерения в ответе `/datasetsEx`.
+pub type DatasetExUnit = NamedEntity<UnitId, UnitId>;
+
 /// Тип кода показателя из `/datasets`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DatasetKind {
@@ -134,6 +146,95 @@ impl<'de> Deserialize<'de> for SeriesType {
     }
 }
 
+/// Ключ сортировки из `DataExLink::s_sort`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum SortKey {
+    /// Числовой ключ сортировки.
+    Numeric(i32),
+    /// Текстовый ключ сортировки.
+    Text(String),
+}
+
+impl SortKey {
+    /// Возвращает числовое значение ключа, если оно доступно.
+    #[must_use]
+    #[inline]
+    pub fn as_numeric(&self) -> Option<i32> {
+        match self {
+            Self::Numeric(value) => Some(*value),
+            Self::Text(_) => None,
+        }
+    }
+
+    /// Возвращает текстовое значение ключа, если оно нечисловое.
+    #[must_use]
+    #[inline]
+    pub fn as_text(&self) -> Option<&str> {
+        match self {
+            Self::Numeric(_) => None,
+            Self::Text(value) => Some(value.as_str()),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for SortKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct SortKeyVisitor;
+
+        impl Visitor<'_> for SortKeyVisitor {
+            type Value = SortKey;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("an integer or a string")
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                let value = i32::try_from(value)
+                    .map_err(|_| E::custom(format!("sort key is out of i32 range: {value}")))?;
+                Ok(SortKey::Numeric(value))
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                let value = i32::try_from(value)
+                    .map_err(|_| E::custom(format!("sort key is out of i32 range: {value}")))?;
+                Ok(SortKey::Numeric(value))
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                match value.parse::<i32>() {
+                    Ok(parsed) => Ok(SortKey::Numeric(parsed)),
+                    Err(_) => Ok(SortKey::Text(value.to_owned())),
+                }
+            }
+
+            fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                match value.parse::<i32>() {
+                    Ok(parsed) => Ok(SortKey::Numeric(parsed)),
+                    Err(_) => Ok(SortKey::Text(value)),
+                }
+            }
+        }
+
+        deserializer.deserialize_any(SortKeyVisitor)
+    }
+}
+
 /// Публикация (категория) из ответа `/publications`.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct Publication {
@@ -234,18 +335,6 @@ where
     }
 }
 
-/// Индикатор в ответе `/datasetsEx`.
-pub type DatasetExIndicator = NamedEntity<IndicatorId, IndicatorId>;
-
-/// Разрез `measure_1` в ответе `/datasetsEx`.
-pub type DatasetExMeasure1 = NamedEntity<MeasureId, IndicatorId>;
-
-/// Разрез `measure_2` в ответе `/datasetsEx`.
-pub type DatasetExMeasure2 = NamedEntity<MeasureId, IndicatorId>;
-
-/// Единица измерения в ответе `/datasetsEx`.
-pub type DatasetExUnit = NamedEntity<UnitId, UnitId>;
-
 /// Ответ метода `/data`.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct DataResponse {
@@ -345,95 +434,6 @@ pub struct DataExLink {
     pub name: Option<String>,
     #[serde(rename = "sSort")]
     pub s_sort: Option<SortKey>,
-}
-
-/// Ключ сортировки из `DataExLink::s_sort`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(untagged)]
-pub enum SortKey {
-    /// Числовой ключ сортировки.
-    Numeric(i32),
-    /// Текстовый ключ сортировки.
-    Text(String),
-}
-
-impl<'de> Deserialize<'de> for SortKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct SortKeyVisitor;
-
-        impl Visitor<'_> for SortKeyVisitor {
-            type Value = SortKey;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("an integer or a string")
-            }
-
-            fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                let value = i32::try_from(value)
-                    .map_err(|_| E::custom(format!("sort key is out of i32 range: {value}")))?;
-                Ok(SortKey::Numeric(value))
-            }
-
-            fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                let value = i32::try_from(value)
-                    .map_err(|_| E::custom(format!("sort key is out of i32 range: {value}")))?;
-                Ok(SortKey::Numeric(value))
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                match value.parse::<i32>() {
-                    Ok(parsed) => Ok(SortKey::Numeric(parsed)),
-                    Err(_) => Ok(SortKey::Text(value.to_owned())),
-                }
-            }
-
-            fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                match value.parse::<i32>() {
-                    Ok(parsed) => Ok(SortKey::Numeric(parsed)),
-                    Err(_) => Ok(SortKey::Text(value)),
-                }
-            }
-        }
-
-        deserializer.deserialize_any(SortKeyVisitor)
-    }
-}
-
-impl SortKey {
-    /// Возвращает числовое значение ключа, если оно доступно.
-    #[must_use]
-    #[inline]
-    pub fn as_numeric(&self) -> Option<i32> {
-        match self {
-            Self::Numeric(value) => Some(*value),
-            Self::Text(_) => None,
-        }
-    }
-
-    /// Возвращает текстовое значение ключа, если оно нечисловое.
-    #[must_use]
-    #[inline]
-    pub fn as_text(&self) -> Option<&str> {
-        match self {
-            Self::Numeric(_) => None,
-            Self::Text(value) => Some(value.as_str()),
-        }
-    }
 }
 
 /// Описание (методология) показателя из `/DatasetDescription`.

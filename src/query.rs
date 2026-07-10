@@ -383,6 +383,43 @@ impl<RootId: Copy> MultiIdsQuery<RootId> {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize)]
+pub(crate) struct PublicationIdQuery {
+    #[serde(rename = "publicationId")]
+    publication_id: PublicationId,
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+pub(crate) struct DatasetIdQuery {
+    #[serde(rename = "datasetId")]
+    dataset_id: DatasetId,
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+pub(crate) struct YearsQuery {
+    #[serde(rename = "datasetId")]
+    dataset_id: DatasetId,
+    #[serde(rename = "measureId", skip_serializing_if = "Option::is_none")]
+    measure_id: Option<MeasureId>,
+}
+
+#[derive(Debug)]
+pub(crate) struct YearsExQuery<'a> {
+    publication_id: PublicationId,
+    ids: &'a [DatasetId],
+}
+
+impl Serialize for YearsExQuery<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(1 + self.ids.len()))?;
+        seq.serialize_element(&("publicationId", self.publication_id))?;
+        serialize_repeated_ids(&mut seq, "ids", self.ids)?;
+        seq.end()
+    }
+}
 fn serialize_multi_ids_query<S, RootId>(
     serializer: S,
     root_key: &'static str,
@@ -416,34 +453,14 @@ where
     Ok(())
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
-pub(crate) struct PublicationIdQuery {
-    #[serde(rename = "publicationId")]
-    publication_id: PublicationId,
-}
-
 #[inline]
 pub(crate) fn publication_id_query(publication_id: PublicationId) -> PublicationIdQuery {
     PublicationIdQuery { publication_id }
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
-pub(crate) struct DatasetIdQuery {
-    #[serde(rename = "datasetId")]
-    dataset_id: DatasetId,
-}
-
 #[inline]
 pub(crate) fn dataset_id_query(dataset_id: DatasetId) -> DatasetIdQuery {
     DatasetIdQuery { dataset_id }
-}
-
-#[derive(Debug, Clone, Copy, Serialize)]
-pub(crate) struct YearsQuery {
-    #[serde(rename = "datasetId")]
-    dataset_id: DatasetId,
-    #[serde(rename = "measureId", skip_serializing_if = "Option::is_none")]
-    measure_id: Option<MeasureId>,
 }
 
 #[inline]
@@ -454,28 +471,10 @@ pub(crate) fn years_query(dataset_id: DatasetId, measure_id: Option<MeasureId>) 
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct YearsExQuery<'a> {
-    publication_id: PublicationId,
-    ids: &'a [DatasetId],
-}
-
 #[inline]
 pub(crate) fn years_ex_query(publication_id: PublicationId, ids: &[DatasetId]) -> YearsExQuery<'_> {
     YearsExQuery {
         publication_id,
         ids,
-    }
-}
-
-impl Serialize for YearsExQuery<'_> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut seq = serializer.serialize_seq(Some(1 + self.ids.len()))?;
-        seq.serialize_element(&("publicationId", self.publication_id))?;
-        serialize_repeated_ids(&mut seq, "ids", self.ids)?;
-        seq.end()
     }
 }

@@ -2,16 +2,6 @@
 //!
 //! Базовый URL API по умолчанию: `https://www.cbr.ru/dataservice`.
 
-#[cfg(feature = "blocking")]
-pub mod blocking;
-pub mod client;
-mod client_common;
-pub mod error;
-pub mod models;
-pub mod presets;
-pub mod query;
-pub mod types;
-
 /// Блокирующий клиент.
 #[cfg(feature = "blocking")]
 pub use blocking::BlockingCbrClient;
@@ -31,3 +21,13 @@ pub use types::{
     IsoDateTime, MeasureId, ParentRef, PeriodId, Periodicity, PublicationId, RowId, UnitId, Year,
     YearSpan,
 };
+
+#[cfg(feature = "blocking")]
+pub mod blocking;
+pub mod client;
+mod client_common;
+pub mod error;
+pub mod models;
+pub mod presets;
+pub mod query;
+pub mod types;

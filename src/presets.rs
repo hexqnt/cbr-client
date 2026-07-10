@@ -5,35 +5,15 @@
 
 use crate::types::{CategoryId, IndicatorId};
 
-/// Пара идентификаторов категории и индикатора для запроса ряда через `/dataNew`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SeriesPreset {
-    /// Идентификатор категории (`categoryId`).
-    pub category_id: CategoryId,
-    /// Идентификатор индикатора (`i_ids`).
-    pub indicator_id: IndicatorId,
-}
-
-impl SeriesPreset {
-    /// Создаёт пресет ряда.
-    #[must_use]
-    #[inline]
-    pub const fn new(category_id: CategoryId, indicator_id: IndicatorId) -> Self {
-        Self {
-            category_id,
-            indicator_id,
-        }
-    }
-}
-
 /// Пресеты и резолверы для валютных рядов.
 pub mod fx {
-    use super::SeriesPreset;
     #[cfg(feature = "blocking")]
     use crate::BlockingCbrClient;
     use crate::models::CategoryNewItem;
     use crate::types::{CategoryId, IndicatorId, MeasureId};
     use crate::{CbrClient, CbrError};
+
+    use super::SeriesPreset;
 
     const CATEGORY_SUBSTR: &str = "Номинальные курсы иностранных валют к рублю";
     const MONTHLY_SUBSTR: &str = "ежемесячные данные";
@@ -41,26 +21,6 @@ pub mod fx {
     const INDICATOR_NOMINAL: &str = "Номинальный курс";
     const INDICATOR_AVERAGE: &str = "Средний номинальный курс за период";
     const INDICATOR_AVERAGE_YTD: &str = "Средний номинальный курс за период с начала года";
-
-    /// Тип периодичности валютного ряда.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub enum FxPeriodicity {
-        /// Ежемесячный ряд.
-        Monthly,
-        /// Ежеквартальный ряд.
-        Quarterly,
-    }
-
-    /// Метрика валютного ряда.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub enum FxMetric {
-        /// Номинальный курс на конец периода.
-        Nominal,
-        /// Средний курс за период.
-        Average,
-        /// Средний курс с начала года.
-        AverageYtd,
-    }
 
     /// Константный пресет ежемесячного номинального курса в категории курсов к RUB.
     ///
@@ -97,16 +57,24 @@ pub mod fx {
     /// `measure2_id` для фильтра среднего CNY/RUB за период.
     pub const CNY_TO_RUB_AVERAGE_MEASURE2_ID: MeasureId = MeasureId::new_const(103);
 
-    /// Пытается динамически найти пресет валютного ряда через каталог `/categoryNew`.
-    ///
-    /// Возвращает `Ok(None)`, если подходящая запись не найдена.
-    pub async fn resolve_fx_series(
-        client: &CbrClient,
-        periodicity: FxPeriodicity,
-        metric: FxMetric,
-    ) -> Result<Option<SeriesPreset>, CbrError> {
-        let response = client.category_new().await?;
-        Ok(find_fx_series(&response.category, periodicity, metric))
+    /// Тип периодичности валютного ряда.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum FxPeriodicity {
+        /// Ежемесячный ряд.
+        Monthly,
+        /// Ежеквартальный ряд.
+        Quarterly,
+    }
+
+    /// Метрика валютного ряда.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum FxMetric {
+        /// Номинальный курс на конец периода.
+        Nominal,
+        /// Средний курс за период.
+        Average,
+        /// Средний курс с начала года.
+        AverageYtd,
     }
 
     /// Блокирующая версия `resolve_fx_series`.
@@ -153,5 +121,36 @@ pub mod fx {
                     && item.indicator_name == indicator_name
             })
             .map(|item| SeriesPreset::new(item.category_id, item.indicator_id))
+    }
+    /// Пытается динамически найти пресет валютного ряда через каталог `/categoryNew`.
+    ///
+    /// Возвращает `Ok(None)`, если подходящая запись не найдена.
+    pub async fn resolve_fx_series(
+        client: &CbrClient,
+        periodicity: FxPeriodicity,
+        metric: FxMetric,
+    ) -> Result<Option<SeriesPreset>, CbrError> {
+        let response = client.category_new().await?;
+        Ok(find_fx_series(&response.category, periodicity, metric))
+    }
+}
+/// Пара идентификаторов категории и индикатора для запроса ряда через `/dataNew`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SeriesPreset {
+    /// Идентификатор категории (`categoryId`).
+    pub category_id: CategoryId,
+    /// Идентификатор индикатора (`i_ids`).
+    pub indicator_id: IndicatorId,
+}
+
+impl SeriesPreset {
+    /// Создаёт пресет ряда.
+    #[must_use]
+    #[inline]
+    pub const fn new(category_id: CategoryId, indicator_id: IndicatorId) -> Self {
+        Self {
+            category_id,
+            indicator_id,
+        }
     }
 }

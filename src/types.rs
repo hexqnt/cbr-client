@@ -6,6 +6,41 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use time::{Date, PrimitiveDateTime};
 
+const ISO_DATETIME_FORMAT: &[time::format_description::FormatItem<'static>] =
+    time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
+const DMY_DATE_FORMAT: &[time::format_description::FormatItem<'static>] =
+    time::macros::format_description!("[day].[month].[year]");
+
+/// Строго типизированный идентификатор публикации.
+pub type PublicationId = Id<PublicationIdKind>;
+
+/// Строго типизированный идентификатор показателя (`dataset`).
+pub type DatasetId = Id<DatasetIdKind>;
+
+/// Строго типизированный идентификатор категории.
+pub type CategoryId = Id<CategoryIdKind>;
+
+/// Строго типизированный идентификатор индикатора.
+pub type IndicatorId = Id<IndicatorIdKind>;
+
+/// Строго типизированный идентификатор разреза (`measure`).
+pub type MeasureId = Id<MeasureIdKind>;
+
+/// Строго типизированный идентификатор единицы измерения.
+pub type UnitId = Id<UnitIdKind>;
+
+/// Строго типизированный идентификатор строки данных.
+pub type RowId = Id<RowIdKind>;
+
+/// Строго типизированный идентификатор периода.
+pub type PeriodId = Id<PeriodIdKind>;
+
+/// Строго типизированный идентификатор колонки.
+pub type ColumnId = Id<ColumnIdKind>;
+
+/// Строго типизированный идентификатор элемента.
+pub type ElementId = Id<ElementIdKind>;
+
 /// Ошибки валидации входных параметров.
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum InputError {
@@ -28,207 +63,56 @@ pub enum InputError {
     ChronoSubsecondPrecision,
 }
 
-/// Маркер домена идентификатора.
-pub trait IdKind {
-    /// Имя поля для текста ошибки.
-    const NAME: &'static str;
-}
-
-/// Обобщённый строго типизированный идентификатор.
-pub struct Id<K>(NonZeroI32, PhantomData<K>);
-
-impl<K> Copy for Id<K> {}
-
-impl<K> Clone for Id<K> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<K> std::fmt::Debug for Id<K> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Id").field(&self.0.get()).finish()
-    }
-}
-
-impl<K> PartialEq for Id<K> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
-
-impl<K> Eq for Id<K> {}
-
-impl<K> std::hash::Hash for Id<K> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.hash(state);
-    }
-}
-
-impl<K> PartialOrd for Id<K> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<K> Ord for Id<K> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.cmp(&other.0)
-    }
-}
-
-impl<K: IdKind> Id<K> {
-    /// Создаёт идентификатор из целого числа.
-    pub fn new(value: i32) -> Result<Self, InputError> {
-        if value <= 0 {
-            return Err(InputError::NonPositiveId {
-                kind: K::NAME,
-                value,
-            });
-        }
-
-        let raw =
-            NonZeroI32::new(value).expect("strictly positive value always produces NonZeroI32");
-        Ok(Self(raw, PhantomData))
-    }
-
-    /// Создаёт идентификатор в `const`-контексте.
-    ///
-    /// Паникует на этапе компиляции, если `value <= 0`.
-    #[must_use]
-    #[inline]
-    pub const fn new_const(value: i32) -> Self {
-        if value <= 0 {
-            panic!("identifier must be strictly positive");
-        }
-
-        match NonZeroI32::new(value) {
-            Some(raw) => Self(raw, PhantomData),
-            None => panic!("identifier must be strictly positive"),
-        }
-    }
-
-    /// Возвращает исходное числовое значение идентификатора.
-    #[must_use]
-    #[inline]
-    pub fn get(self) -> i32 {
-        self.0.get()
-    }
-}
-
-impl<K: IdKind> TryFrom<i32> for Id<K> {
-    type Error = InputError;
-
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl<K: IdKind> From<Id<K>> for i32 {
-    fn from(value: Id<K>) -> Self {
-        value.get()
-    }
-}
-
-impl<K: IdKind> Serialize for Id<K> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_i32(self.get())
-    }
-}
-
-impl<'de, K: IdKind> Deserialize<'de> for Id<K> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let raw = i32::deserialize(deserializer)?;
-        Self::new(raw).map_err(serde::de::Error::custom)
-    }
-}
-
 #[doc(hidden)]
 pub enum PublicationIdKind {}
 impl IdKind for PublicationIdKind {
     const NAME: &'static str = "publication_id";
 }
-/// Строго типизированный идентификатор публикации.
-pub type PublicationId = Id<PublicationIdKind>;
-
 #[doc(hidden)]
 pub enum DatasetIdKind {}
 impl IdKind for DatasetIdKind {
     const NAME: &'static str = "dataset_id";
 }
-/// Строго типизированный идентификатор показателя (`dataset`).
-pub type DatasetId = Id<DatasetIdKind>;
-
 #[doc(hidden)]
 pub enum CategoryIdKind {}
 impl IdKind for CategoryIdKind {
     const NAME: &'static str = "category_id";
 }
-/// Строго типизированный идентификатор категории.
-pub type CategoryId = Id<CategoryIdKind>;
-
 #[doc(hidden)]
 pub enum IndicatorIdKind {}
 impl IdKind for IndicatorIdKind {
     const NAME: &'static str = "indicator_id";
 }
-/// Строго типизированный идентификатор индикатора.
-pub type IndicatorId = Id<IndicatorIdKind>;
-
 #[doc(hidden)]
 pub enum MeasureIdKind {}
 impl IdKind for MeasureIdKind {
     const NAME: &'static str = "measure_id";
 }
-/// Строго типизированный идентификатор разреза (`measure`).
-pub type MeasureId = Id<MeasureIdKind>;
-
 #[doc(hidden)]
 pub enum UnitIdKind {}
 impl IdKind for UnitIdKind {
     const NAME: &'static str = "unit_id";
 }
-/// Строго типизированный идентификатор единицы измерения.
-pub type UnitId = Id<UnitIdKind>;
-
 #[doc(hidden)]
 pub enum RowIdKind {}
 impl IdKind for RowIdKind {
     const NAME: &'static str = "row_id";
 }
-/// Строго типизированный идентификатор строки данных.
-pub type RowId = Id<RowIdKind>;
-
 #[doc(hidden)]
 pub enum PeriodIdKind {}
 impl IdKind for PeriodIdKind {
     const NAME: &'static str = "period_id";
 }
-/// Строго типизированный идентификатор периода.
-pub type PeriodId = Id<PeriodIdKind>;
-
 #[doc(hidden)]
 pub enum ColumnIdKind {}
 impl IdKind for ColumnIdKind {
     const NAME: &'static str = "column_id";
 }
-/// Строго типизированный идентификатор колонки.
-pub type ColumnId = Id<ColumnIdKind>;
-
 #[doc(hidden)]
 pub enum ElementIdKind {}
 impl IdKind for ElementIdKind {
     const NAME: &'static str = "element_id";
 }
-/// Строго типизированный идентификатор элемента.
-pub type ElementId = Id<ElementIdKind>;
-
 /// Родительская ссылка с явным корнем (`-1`) или валидным id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ParentRef<T> {
@@ -300,6 +184,127 @@ where
     }
 }
 
+/// Периодичность ряда.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Periodicity {
+    /// Месячная периодичность.
+    Month,
+    /// Квартальная периодичность.
+    Quarter,
+    /// Годовая периодичность.
+    Year,
+}
+
+/// Обобщённый строго типизированный идентификатор.
+pub struct Id<K>(NonZeroI32, PhantomData<K>);
+
+impl<K: IdKind> Id<K> {
+    /// Создаёт идентификатор из целого числа.
+    pub fn new(value: i32) -> Result<Self, InputError> {
+        if value <= 0 {
+            return Err(InputError::NonPositiveId {
+                kind: K::NAME,
+                value,
+            });
+        }
+
+        let raw =
+            NonZeroI32::new(value).expect("strictly positive value always produces NonZeroI32");
+        Ok(Self(raw, PhantomData))
+    }
+
+    /// Создаёт идентификатор в `const`-контексте.
+    ///
+    /// Паникует на этапе компиляции, если `value <= 0`.
+    #[must_use]
+    #[inline]
+    pub const fn new_const(value: i32) -> Self {
+        if value <= 0 {
+            panic!("identifier must be strictly positive");
+        }
+
+        match NonZeroI32::new(value) {
+            Some(raw) => Self(raw, PhantomData),
+            None => panic!("identifier must be strictly positive"),
+        }
+    }
+
+    /// Возвращает исходное числовое значение идентификатора.
+    #[must_use]
+    #[inline]
+    pub fn get(self) -> i32 {
+        self.0.get()
+    }
+}
+
+impl<K> Copy for Id<K> {}
+
+impl<K> Clone for Id<K> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<K> PartialEq for Id<K> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<K> Eq for Id<K> {}
+
+impl<K> PartialOrd for Id<K> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<K> Ord for Id<K> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.cmp(&other.0)
+    }
+}
+
+impl<K: IdKind> TryFrom<i32> for Id<K> {
+    type Error = InputError;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl<K> std::fmt::Debug for Id<K> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Id").field(&self.0.get()).finish()
+    }
+}
+
+impl<K> std::hash::Hash for Id<K> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+impl<K: IdKind> Serialize for Id<K> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_i32(self.get())
+    }
+}
+
+impl<'de, K: IdKind> Deserialize<'de> for Id<K> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = i32::deserialize(deserializer)?;
+        Self::new(raw).map_err(serde::de::Error::custom)
+    }
+}
+
 /// Календарный год.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -320,17 +325,6 @@ impl Year {
         self.0
     }
 }
-
-impl From<Year> for i32 {
-    fn from(value: Year) -> Self {
-        value.get()
-    }
-}
-
-const ISO_DATETIME_FORMAT: &[time::format_description::FormatItem<'static>] =
-    time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
-const DMY_DATE_FORMAT: &[time::format_description::FormatItem<'static>] =
-    time::macros::format_description!("[day].[month].[year]");
 
 /// Дата и время в формате `YYYY-MM-DDTHH:MM:SS`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -385,6 +379,43 @@ impl IsoDateTime {
     }
 }
 
+#[cfg(feature = "chrono")]
+impl TryFrom<NaiveDateTime> for IsoDateTime {
+    type Error = InputError;
+
+    fn try_from(value: NaiveDateTime) -> Result<Self, Self::Error> {
+        if value.nanosecond() != 0 {
+            return Err(InputError::ChronoSubsecondPrecision);
+        }
+
+        let month = chrono_month_to_time(value.month())?;
+        let day =
+            u8::try_from(value.day()).map_err(|_| InputError::ChronoOutOfRange { kind: "day" })?;
+        let date = Date::from_calendar_date(value.year(), month, day)
+            .map_err(|_| InputError::ChronoOutOfRange { kind: "date" })?;
+        let hour = u8::try_from(value.hour())
+            .map_err(|_| InputError::ChronoOutOfRange { kind: "hour" })?;
+        let minute = u8::try_from(value.minute())
+            .map_err(|_| InputError::ChronoOutOfRange { kind: "minute" })?;
+        let second = u8::try_from(value.second())
+            .map_err(|_| InputError::ChronoOutOfRange { kind: "second" })?;
+        let time = time::Time::from_hms(hour, minute, second)
+            .map_err(|_| InputError::ChronoOutOfRange { kind: "time" })?;
+
+        Ok(Self::new(PrimitiveDateTime::new(date, time)))
+    }
+}
+
+impl std::fmt::Display for IsoDateTime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = self
+            .0
+            .format(ISO_DATETIME_FORMAT)
+            .map_err(|_| std::fmt::Error)?;
+        f.write_str(&value)
+    }
+}
+
 impl Serialize for IsoDateTime {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -405,16 +436,6 @@ impl<'de> Deserialize<'de> for IsoDateTime {
     {
         let value = <&str>::deserialize(deserializer)?;
         Self::parse(value).map_err(serde::de::Error::custom)
-    }
-}
-
-impl std::fmt::Display for IsoDateTime {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let value = self
-            .0
-            .format(ISO_DATETIME_FORMAT)
-            .map_err(|_| std::fmt::Error)?;
-        f.write_str(&value)
     }
 }
 
@@ -461,6 +482,30 @@ impl DmyDate {
     }
 }
 
+#[cfg(feature = "chrono")]
+impl TryFrom<NaiveDate> for DmyDate {
+    type Error = InputError;
+
+    fn try_from(value: NaiveDate) -> Result<Self, Self::Error> {
+        let month = chrono_month_to_time(value.month())?;
+        let day =
+            u8::try_from(value.day()).map_err(|_| InputError::ChronoOutOfRange { kind: "day" })?;
+        Date::from_calendar_date(value.year(), month, day)
+            .map(Self::new)
+            .map_err(|_| InputError::ChronoOutOfRange { kind: "date" })
+    }
+}
+
+impl std::fmt::Display for DmyDate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = self
+            .0
+            .format(DMY_DATE_FORMAT)
+            .map_err(|_| std::fmt::Error)?;
+        f.write_str(&value)
+    }
+}
+
 impl Serialize for DmyDate {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -482,75 +527,6 @@ impl<'de> Deserialize<'de> for DmyDate {
         let value = <&str>::deserialize(deserializer)?;
         Self::parse(value).map_err(serde::de::Error::custom)
     }
-}
-
-impl std::fmt::Display for DmyDate {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let value = self
-            .0
-            .format(DMY_DATE_FORMAT)
-            .map_err(|_| std::fmt::Error)?;
-        f.write_str(&value)
-    }
-}
-
-#[cfg(feature = "chrono")]
-impl TryFrom<NaiveDateTime> for IsoDateTime {
-    type Error = InputError;
-
-    fn try_from(value: NaiveDateTime) -> Result<Self, Self::Error> {
-        if value.nanosecond() != 0 {
-            return Err(InputError::ChronoSubsecondPrecision);
-        }
-
-        let month = chrono_month_to_time(value.month())?;
-        let day =
-            u8::try_from(value.day()).map_err(|_| InputError::ChronoOutOfRange { kind: "day" })?;
-        let date = Date::from_calendar_date(value.year(), month, day)
-            .map_err(|_| InputError::ChronoOutOfRange { kind: "date" })?;
-        let hour = u8::try_from(value.hour())
-            .map_err(|_| InputError::ChronoOutOfRange { kind: "hour" })?;
-        let minute = u8::try_from(value.minute())
-            .map_err(|_| InputError::ChronoOutOfRange { kind: "minute" })?;
-        let second = u8::try_from(value.second())
-            .map_err(|_| InputError::ChronoOutOfRange { kind: "second" })?;
-        let time = time::Time::from_hms(hour, minute, second)
-            .map_err(|_| InputError::ChronoOutOfRange { kind: "time" })?;
-
-        Ok(Self::new(PrimitiveDateTime::new(date, time)))
-    }
-}
-
-#[cfg(feature = "chrono")]
-impl TryFrom<NaiveDate> for DmyDate {
-    type Error = InputError;
-
-    fn try_from(value: NaiveDate) -> Result<Self, Self::Error> {
-        let month = chrono_month_to_time(value.month())?;
-        let day =
-            u8::try_from(value.day()).map_err(|_| InputError::ChronoOutOfRange { kind: "day" })?;
-        Date::from_calendar_date(value.year(), month, day)
-            .map(Self::new)
-            .map_err(|_| InputError::ChronoOutOfRange { kind: "date" })
-    }
-}
-
-#[cfg(feature = "chrono")]
-fn chrono_month_to_time(value: u32) -> Result<time::Month, InputError> {
-    let month = u8::try_from(value).map_err(|_| InputError::ChronoOutOfRange { kind: "month" })?;
-    time::Month::try_from(month).map_err(|_| InputError::ChronoOutOfRange { kind: "month" })
-}
-
-/// Периодичность ряда.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Periodicity {
-    /// Месячная периодичность.
-    Month,
-    /// Квартальная периодичность.
-    Quarter,
-    /// Годовая периодичность.
-    Year,
 }
 
 /// Диапазон годов включительно.
@@ -586,4 +562,27 @@ impl YearSpan {
     pub fn end(self) -> Year {
         self.end
     }
+}
+/// Маркер домена идентификатора.
+pub trait IdKind {
+    /// Имя поля для текста ошибки.
+    const NAME: &'static str;
+}
+
+impl<K: IdKind> From<Id<K>> for i32 {
+    fn from(value: Id<K>) -> Self {
+        value.get()
+    }
+}
+
+impl From<Year> for i32 {
+    fn from(value: Year) -> Self {
+        value.get()
+    }
+}
+
+#[cfg(feature = "chrono")]
+fn chrono_month_to_time(value: u32) -> Result<time::Month, InputError> {
+    let month = u8::try_from(value).map_err(|_| InputError::ChronoOutOfRange { kind: "month" })?;
+    time::Month::try_from(month).map_err(|_| InputError::ChronoOutOfRange { kind: "month" })
 }

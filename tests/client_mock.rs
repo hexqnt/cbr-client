@@ -20,6 +20,19 @@ const CATEGORY_NEW_JSON: &str = r#"{"category":[{"category_id":5,"category_name"
 const CATEGORY_NEW_FX_JSON: &str = r#"{"category":[{"category_id":33,"category_name":"Статистика внешнего сектора-Основные производные показатели динамики обменного курса рубля-Номинальные курсы иностранных валют к рублю (рублей за единицу иностранной валюты) (ежемесячные данные)","indicator_id":127,"indicator_parent":-1,"indicator_name":"Номинальный курс","link":"/statistics/macro_itm/external_sector/er/","begin_dt":2005,"end_dt":2026},{"category_id":33,"category_name":"Статистика внешнего сектора-Основные производные показатели динамики обменного курса рубля-Номинальные курсы иностранных валют к рублю (рублей за единицу иностранной валюты) (ежемесячные данные)","indicator_id":128,"indicator_parent":-1,"indicator_name":"Средний номинальный курс за период","link":"/statistics/macro_itm/external_sector/er/","begin_dt":2005,"end_dt":2026},{"category_id":33,"category_name":"Статистика внешнего сектора-Основные производные показатели динамики обменного курса рубля-Номинальные курсы иностранных валют к рублю (рублей за единицу иностранной валюты) (ежемесячные данные)","indicator_id":139,"indicator_parent":-1,"indicator_name":"Средний номинальный курс за период с начала года","link":"/statistics/macro_itm/external_sector/er/","begin_dt":2005,"end_dt":2026},{"category_id":35,"category_name":"Статистика внешнего сектора-Основные производные показатели динамики обменного курса рубля-Номинальные курсы иностранных валют к рублю (рублей за единицу иностранной валюты) (ежеквартальные данные)","indicator_id":133,"indicator_parent":-1,"indicator_name":"Номинальный курс","link":"/statistics/macro_itm/external_sector/er/","begin_dt":2005,"end_dt":2026},{"category_id":35,"category_name":"Статистика внешнего сектора-Основные производные показатели динамики обменного курса рубля-Номинальные курсы иностранных валют к рублю (рублей за единицу иностранной валюты) (ежеквартальные данные)","indicator_id":134,"indicator_parent":-1,"indicator_name":"Средний номинальный курс за период","link":"/statistics/macro_itm/external_sector/er/","begin_dt":2005,"end_dt":2026},{"category_id":35,"category_name":"Статистика внешнего сектора-Основные производные показатели динамики обменного курса рубля-Номинальные курсы иностранных валют к рублю (рублей за единицу иностранной валюты) (ежеквартальные данные)","indicator_id":141,"indicator_parent":-1,"indicator_name":"Средний номинальный курс за период с начала года","link":"/statistics/macro_itm/external_sector/er/","begin_dt":2005,"end_dt":2026}]}"#;
 const DATA_NEW_JSON: &str = r#"{"RowData":[{"id":3204221,"indicator_id":7,"measure1_id":null,"measure2_id":22,"unit_id":3,"obs_val":15739.9,"date":"2021-08-01T00:00:00","periodicity":"month"}],"Links":[{"indicator_id":7,"indicator_parent":-1,"measure1_id":null,"measure2_id":12,"unit_id":3,"indicator_name":"M2","measure1_name":null,"measure2_name":"All","un_name":"bln RUB"}]}"#;
 
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+struct AdvancedPayload {
+    value: i32,
+    name: String,
+}
+
+#[derive(Debug, Serialize)]
+struct AdvancedQuery {
+    #[serde(rename = "indicatorId")]
+    indicator_id: i32,
+    page: i32,
+}
+
 fn publication_id(value: i32) -> PublicationId {
     PublicationId::new(value).unwrap()
 }
@@ -44,6 +57,153 @@ fn year_span(start: i32, end: i32) -> YearSpan {
     YearSpan::new(Year::new(start), Year::new(end)).unwrap()
 }
 
+#[cfg(feature = "blocking")]
+#[test]
+fn blocking_client_supports_same_api() {
+    use cbr_client::BlockingCbrClient;
+
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET).path("/publications");
+        then.status(200)
+            .header("content-type", JSON_CONTENT_TYPE)
+            .body(PUBLICATIONS_JSON);
+    });
+
+    let client = BlockingCbrClient::builder()
+        .base_url(server.base_url())
+        .build_blocking()
+        .unwrap();
+    let publications = client.publications().unwrap();
+
+    assert_eq!(publications.len(), 1);
+    mock.assert();
+}
+
+#[cfg(feature = "blocking")]
+#[test]
+fn blocking_advanced_request_json_supports_custom_types() {
+    use cbr_client::BlockingCbrClient;
+
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/advanced-query")
+            .query_param("indicatorId", "38")
+            .query_param("page", "2");
+        then.status(200)
+            .header("content-type", JSON_CONTENT_TYPE)
+            .body(r#"{"value":9,"name":"blocking"}"#);
+    });
+
+    let client = BlockingCbrClient::builder()
+        .base_url(server.base_url())
+        .build_blocking()
+        .unwrap();
+    let payload: AdvancedPayload = client
+        .request_json_with_query(
+            "/advanced-query",
+            &AdvancedQuery {
+                indicator_id: 38,
+                page: 2,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(
+        payload,
+        AdvancedPayload {
+            value: 9,
+            name: "blocking".to_owned(),
+        }
+    );
+    mock.assert();
+}
+
+#[cfg(feature = "blocking")]
+#[test]
+fn blocking_advanced_request_json_accepts_path_without_leading_slash() {
+    use cbr_client::BlockingCbrClient;
+
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET).path("/advanced-no-slash");
+        then.status(200)
+            .header("content-type", JSON_CONTENT_TYPE)
+            .body(r#"{"value":12,"name":"blocking-no-slash"}"#);
+    });
+
+    let client = BlockingCbrClient::builder()
+        .base_url(server.base_url())
+        .build_blocking()
+        .unwrap();
+    let payload: AdvancedPayload = client.request_json("advanced-no-slash").unwrap();
+
+    assert_eq!(
+        payload,
+        AdvancedPayload {
+            value: 12,
+            name: "blocking-no-slash".to_owned(),
+        }
+    );
+    mock.assert();
+}
+
+#[cfg(feature = "blocking")]
+#[test]
+fn resolves_usd_rub_presets_from_catalog_blocking() {
+    use cbr_client::BlockingCbrClient;
+
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET).path("/categoryNew");
+        then.status(200)
+            .header("content-type", JSON_CONTENT_TYPE)
+            .body(CATEGORY_NEW_FX_JSON);
+    });
+
+    let client = BlockingCbrClient::builder()
+        .base_url(server.base_url())
+        .build_blocking()
+        .unwrap();
+    let resolved_m_nominal =
+        fx::resolve_fx_series_blocking(&client, FxPeriodicity::Monthly, FxMetric::Nominal)
+            .unwrap()
+            .unwrap();
+    let resolved_m_avg =
+        fx::resolve_fx_series_blocking(&client, FxPeriodicity::Monthly, FxMetric::Average)
+            .unwrap()
+            .unwrap();
+    let resolved_q_nominal =
+        fx::resolve_fx_series_blocking(&client, FxPeriodicity::Quarterly, FxMetric::Nominal)
+            .unwrap()
+            .unwrap();
+
+    assert_eq!(resolved_m_nominal, fx::USD_RUB_MONTHLY_NOMINAL);
+    assert_eq!(resolved_m_avg, fx::USD_RUB_MONTHLY_AVERAGE);
+    assert_eq!(resolved_q_nominal, fx::USD_RUB_QUARTERLY_NOMINAL);
+    mock.assert_calls(3);
+}
+
+#[test]
+fn builder_rejects_invalid_proxy_url() {
+    let error = CbrClient::builder()
+        .proxy("://bad-proxy-url")
+        .build()
+        .unwrap_err();
+
+    assert!(matches!(error, CbrError::Build(_)));
+
+    #[cfg(feature = "blocking")]
+    {
+        let blocking_error = CbrClient::builder()
+            .proxy("://bad-proxy-url")
+            .build_blocking()
+            .unwrap_err();
+
+        assert!(matches!(blocking_error, CbrError::Build(_)));
+    }
+}
 #[tokio::test]
 async fn deserializes_all_endpoints() {
     let server = MockServer::start_async().await;
@@ -526,19 +686,6 @@ async fn resolves_usd_rub_presets_from_catalog() {
     mock.assert_calls_async(6).await;
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-struct AdvancedPayload {
-    value: i32,
-    name: String,
-}
-
-#[derive(Debug, Serialize)]
-struct AdvancedQuery {
-    #[serde(rename = "indicatorId")]
-    indicator_id: i32,
-    page: i32,
-}
-
 #[tokio::test]
 async fn advanced_request_json_supports_custom_response_types() {
     let server = MockServer::start_async().await;
@@ -636,152 +783,4 @@ async fn advanced_request_json_with_query_supports_custom_query_types() {
         }
     );
     mock.assert_async().await;
-}
-
-#[cfg(feature = "blocking")]
-#[test]
-fn blocking_client_supports_same_api() {
-    use cbr_client::BlockingCbrClient;
-
-    let server = MockServer::start();
-    let mock = server.mock(|when, then| {
-        when.method(GET).path("/publications");
-        then.status(200)
-            .header("content-type", JSON_CONTENT_TYPE)
-            .body(PUBLICATIONS_JSON);
-    });
-
-    let client = BlockingCbrClient::builder()
-        .base_url(server.base_url())
-        .build_blocking()
-        .unwrap();
-    let publications = client.publications().unwrap();
-
-    assert_eq!(publications.len(), 1);
-    mock.assert();
-}
-
-#[cfg(feature = "blocking")]
-#[test]
-fn blocking_advanced_request_json_supports_custom_types() {
-    use cbr_client::BlockingCbrClient;
-
-    let server = MockServer::start();
-    let mock = server.mock(|when, then| {
-        when.method(GET)
-            .path("/advanced-query")
-            .query_param("indicatorId", "38")
-            .query_param("page", "2");
-        then.status(200)
-            .header("content-type", JSON_CONTENT_TYPE)
-            .body(r#"{"value":9,"name":"blocking"}"#);
-    });
-
-    let client = BlockingCbrClient::builder()
-        .base_url(server.base_url())
-        .build_blocking()
-        .unwrap();
-    let payload: AdvancedPayload = client
-        .request_json_with_query(
-            "/advanced-query",
-            &AdvancedQuery {
-                indicator_id: 38,
-                page: 2,
-            },
-        )
-        .unwrap();
-
-    assert_eq!(
-        payload,
-        AdvancedPayload {
-            value: 9,
-            name: "blocking".to_owned(),
-        }
-    );
-    mock.assert();
-}
-
-#[cfg(feature = "blocking")]
-#[test]
-fn blocking_advanced_request_json_accepts_path_without_leading_slash() {
-    use cbr_client::BlockingCbrClient;
-
-    let server = MockServer::start();
-    let mock = server.mock(|when, then| {
-        when.method(GET).path("/advanced-no-slash");
-        then.status(200)
-            .header("content-type", JSON_CONTENT_TYPE)
-            .body(r#"{"value":12,"name":"blocking-no-slash"}"#);
-    });
-
-    let client = BlockingCbrClient::builder()
-        .base_url(server.base_url())
-        .build_blocking()
-        .unwrap();
-    let payload: AdvancedPayload = client.request_json("advanced-no-slash").unwrap();
-
-    assert_eq!(
-        payload,
-        AdvancedPayload {
-            value: 12,
-            name: "blocking-no-slash".to_owned(),
-        }
-    );
-    mock.assert();
-}
-
-#[cfg(feature = "blocking")]
-#[test]
-fn resolves_usd_rub_presets_from_catalog_blocking() {
-    use cbr_client::BlockingCbrClient;
-
-    let server = MockServer::start();
-    let mock = server.mock(|when, then| {
-        when.method(GET).path("/categoryNew");
-        then.status(200)
-            .header("content-type", JSON_CONTENT_TYPE)
-            .body(CATEGORY_NEW_FX_JSON);
-    });
-
-    let client = BlockingCbrClient::builder()
-        .base_url(server.base_url())
-        .build_blocking()
-        .unwrap();
-    let resolved_m_nominal =
-        fx::resolve_fx_series_blocking(&client, FxPeriodicity::Monthly, FxMetric::Nominal)
-            .unwrap()
-            .unwrap();
-    let resolved_m_avg =
-        fx::resolve_fx_series_blocking(&client, FxPeriodicity::Monthly, FxMetric::Average)
-            .unwrap()
-            .unwrap();
-    let resolved_q_nominal =
-        fx::resolve_fx_series_blocking(&client, FxPeriodicity::Quarterly, FxMetric::Nominal)
-            .unwrap()
-            .unwrap();
-
-    assert_eq!(resolved_m_nominal, fx::USD_RUB_MONTHLY_NOMINAL);
-    assert_eq!(resolved_m_avg, fx::USD_RUB_MONTHLY_AVERAGE);
-    assert_eq!(resolved_q_nominal, fx::USD_RUB_QUARTERLY_NOMINAL);
-    mock.assert_calls(3);
-}
-
-#[test]
-fn builder_rejects_invalid_proxy_url() {
-    let error = CbrClient::builder()
-        .proxy("://bad-proxy-url")
-        .build()
-        .unwrap_err();
-
-    assert!(matches!(error, CbrError::Build(_)));
-
-    #[cfg(feature = "blocking")]
-    {
-        let blocking_error = CbrClient::builder()
-            .proxy("://bad-proxy-url")
-            .build_blocking()
-            .unwrap_err();
-
-        assert!(matches!(blocking_error, CbrError::Build(_)));
-    }
 }

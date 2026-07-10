@@ -3,7 +3,6 @@ use std::time::Duration;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-pub use crate::client_common::DEFAULT_BASE_URL;
 use crate::client_common::{
     cbr_endpoint_methods, configure_reqwest_builder, endpoint, normalize_base_url,
 };
@@ -17,6 +16,8 @@ use crate::query::{
     years_query,
 };
 use crate::types::{DatasetId, MeasureId, PublicationId};
+
+pub use crate::client_common::DEFAULT_BASE_URL;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -59,18 +60,6 @@ pub struct CbrClientBuilder {
     pub(crate) user_agent: Option<String>,
     pub(crate) proxy_url: Option<String>,
     pub(crate) use_system_proxy: bool,
-}
-
-impl Default for CbrClientBuilder {
-    fn default() -> Self {
-        Self {
-            base_url: DEFAULT_BASE_URL.to_owned(),
-            timeout: DEFAULT_TIMEOUT,
-            user_agent: None,
-            proxy_url: None,
-            use_system_proxy: false,
-        }
-    }
 }
 
 impl CbrClientBuilder {
@@ -155,6 +144,18 @@ impl CbrClientBuilder {
     #[inline]
     pub fn build_blocking(self) -> Result<crate::blocking::BlockingCbrClient, CbrError> {
         crate::blocking::BlockingCbrClient::from_builder(self)
+    }
+}
+
+impl Default for CbrClientBuilder {
+    fn default() -> Self {
+        Self {
+            base_url: DEFAULT_BASE_URL.to_owned(),
+            timeout: DEFAULT_TIMEOUT,
+            user_agent: None,
+            proxy_url: None,
+            use_system_proxy: false,
+        }
     }
 }
 

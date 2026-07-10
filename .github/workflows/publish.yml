@@ -9,8 +9,38 @@ permissions:
   contents: read
 
 jobs:
+  verify:
+    name: Pre-publish checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+
+      - name: Tests
+        run: cargo test --all-features --locked
+
+      - name: Check package contents
+        run: cargo package --locked --list
+
   publish:
     name: Publish to crates.io
+    needs: verify
     runs-on: ubuntu-latest
 
     steps:
