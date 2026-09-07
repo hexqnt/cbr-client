@@ -195,7 +195,8 @@ impl CbrClient {
     where
         T: DeserializeOwned,
     {
-        self.get_json(path).await
+        let request = self.http.get(endpoint(&self.base_url, path));
+        self.send_json(request).await
     }
 
     /// Выполняет GET-запрос с query-параметрами и десериализует JSON в тип пользователя.
@@ -207,40 +208,19 @@ impl CbrClient {
         T: DeserializeOwned,
         Q: Serialize + ?Sized,
     {
-        self.get_json_with_query(path, query).await
+        let request = self.http.get(endpoint(&self.base_url, path)).query(query);
+        self.send_json(request).await
     }
 
     cbr_endpoint_methods!(impl_async_endpoint_method);
 
-    async fn get_json<T>(&self, path: &str) -> Result<T, CbrError>
+    async fn send_json<T>(&self, request: reqwest::RequestBuilder) -> Result<T, CbrError>
     where
         T: DeserializeOwned,
     {
-        let response = self
-            .http
-            .get(endpoint(&self.base_url, path))
-            .send()
-            .await
-            .map_err(CbrError::transport)?;
+        let response = request.send().await.map_err(CbrError::transport)?;
         let status = response.status();
         let body = response.bytes().await.map_err(CbrError::transport)?;
-        parse_json_body(status, body.as_ref())
-    }
-
-    async fn get_json_with_query<T, Q>(&self, path: &str, query: &Q) -> Result<T, CbrError>
-    where
-        T: DeserializeOwned,
-        Q: Serialize + ?Sized,
-    {
-        let response = self
-            .http
-            .get(endpoint(&self.base_url, path))
-            .query(query)
-            .send()
-            .await
-            .map_err(CbrError::transport)?;
-        let status = response.status();
-        let body = response.bytes().await.map_err(CbrError::transport)?;
-        parse_json_body(status, body.as_ref())
+        parse_json_body(status, &body)
     }
 }

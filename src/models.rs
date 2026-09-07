@@ -4,8 +4,8 @@ use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::types::{
-    CategoryId, ColumnId, DatasetId, DmyDate, ElementId, IndicatorId, InputError, IsoDateTime,
-    MeasureId, ParentRef, PeriodId, Periodicity, PublicationId, RowId, UnitId, Year,
+    CategoryId, ColumnId, DatasetId, DmyDate, ElementId, IndicatorId, IsoDateTime, MeasureId,
+    ParentRef, PeriodId, Periodicity, PublicationId, RowId, UnitId, Year,
 };
 
 /// Индикатор в ответе `/datasetsEx`.
@@ -303,36 +303,12 @@ pub struct DatasetsExResponse {
 }
 
 /// Универсальная именованная сущность из `/datasetsEx`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(bound(deserialize = "Id: Deserialize<'de>, ParentRef<ParentId>: Deserialize<'de>"))]
 pub struct NamedEntity<Id, ParentId> {
     pub id: Id,
     pub parent_id: ParentRef<ParentId>,
     pub name: String,
-}
-
-impl<'de, Id, ParentId> Deserialize<'de> for NamedEntity<Id, ParentId>
-where
-    Id: Deserialize<'de>,
-    ParentId: TryFrom<i32, Error = InputError> + Copy,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        struct RawNamedEntity<Id> {
-            id: Id,
-            parent_id: i32,
-            name: String,
-        }
-
-        let raw = RawNamedEntity::deserialize(deserializer)?;
-        Ok(Self {
-            id: raw.id,
-            parent_id: ParentRef::new(raw.parent_id).map_err(serde::de::Error::custom)?,
-            name: raw.name,
-        })
-    }
 }
 
 /// Ответ метода `/data`.

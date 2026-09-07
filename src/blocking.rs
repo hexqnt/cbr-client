@@ -83,7 +83,8 @@ impl BlockingCbrClient {
     where
         T: DeserializeOwned,
     {
-        self.get_json(path)
+        let request = self.http.get(endpoint(&self.base_url, path));
+        self.send_json(request)
     }
 
     /// Выполняет GET-запрос с query-параметрами и десериализует JSON в тип пользователя.
@@ -95,7 +96,8 @@ impl BlockingCbrClient {
         T: DeserializeOwned,
         Q: Serialize + ?Sized,
     {
-        self.get_json_with_query(path, query)
+        let request = self.http.get(endpoint(&self.base_url, path)).query(query);
+        self.send_json(request)
     }
 
     cbr_endpoint_methods!(impl_blocking_endpoint_method);
@@ -117,33 +119,13 @@ impl BlockingCbrClient {
         })
     }
 
-    fn get_json<T>(&self, path: &str) -> Result<T, CbrError>
+    fn send_json<T>(&self, request: reqwest::blocking::RequestBuilder) -> Result<T, CbrError>
     where
         T: DeserializeOwned,
     {
-        let response = self
-            .http
-            .get(endpoint(&self.base_url, path))
-            .send()
-            .map_err(CbrError::transport)?;
+        let response = request.send().map_err(CbrError::transport)?;
         let status = response.status();
         let body = response.bytes().map_err(CbrError::transport)?;
-        parse_json_body(status, body.as_ref())
-    }
-
-    fn get_json_with_query<T, Q>(&self, path: &str, query: &Q) -> Result<T, CbrError>
-    where
-        T: DeserializeOwned,
-        Q: Serialize + ?Sized,
-    {
-        let response = self
-            .http
-            .get(endpoint(&self.base_url, path))
-            .query(query)
-            .send()
-            .map_err(CbrError::transport)?;
-        let status = response.status();
-        let body = response.bytes().map_err(CbrError::transport)?;
-        parse_json_body(status, body.as_ref())
+        parse_json_body(status, &body)
     }
 }

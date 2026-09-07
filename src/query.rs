@@ -1,51 +1,12 @@
 use serde::Serialize;
 use serde::ser::{SerializeMap, SerializeSeq, Serializer};
 
-use crate::types::{CategoryId, DatasetId, IndicatorId, MeasureId, PublicationId, Year, YearSpan};
-
-#[derive(Debug, Clone, Copy)]
-struct YearsRangeQuery {
-    span: YearSpan,
-}
-
-impl YearsRangeQuery {
-    #[inline]
-    fn from_span(span: YearSpan) -> Self {
-        Self { span }
-    }
-
-    #[inline]
-    fn span(self) -> YearSpan {
-        self.span
-    }
-
-    #[inline]
-    fn start(self) -> Year {
-        self.span.start()
-    }
-
-    #[inline]
-    fn end(self) -> Year {
-        self.span.end()
-    }
-}
-
-impl Serialize for YearsRangeQuery {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut map = serializer.serialize_map(Some(2))?;
-        map.serialize_entry("y1", &self.start())?;
-        map.serialize_entry("y2", &self.end())?;
-        map.end()
-    }
-}
+use crate::types::{CategoryId, DatasetId, IndicatorId, MeasureId, PublicationId, YearSpan};
 
 /// Параметры для метода `/data`.
 #[derive(Debug, Clone)]
 pub struct DataQuery {
-    years: YearsRangeQuery,
+    years: YearSpan,
     dataset_id: DatasetId,
     publication_id: PublicationId,
     measure_id: Option<MeasureId>,
@@ -57,7 +18,7 @@ impl DataQuery {
     #[inline]
     pub fn new(years: YearSpan, dataset_id: DatasetId, publication_id: PublicationId) -> Self {
         Self {
-            years: YearsRangeQuery::from_span(years),
+            years,
             dataset_id,
             publication_id,
             measure_id: None,
@@ -76,7 +37,7 @@ impl DataQuery {
     #[must_use]
     #[inline]
     pub fn years(&self) -> YearSpan {
-        self.years.span()
+        self.years
     }
 
     /// Возвращает идентификатор показателя.
@@ -312,7 +273,7 @@ impl Serialize for DataNewQuery {
 #[derive(Debug, Clone)]
 struct MultiIdsQuery<RootId> {
     root_id: RootId,
-    years: YearsRangeQuery,
+    years: YearSpan,
     i_ids: Vec<IndicatorId>,
     m1_ids: Vec<MeasureId>,
     m2_ids: Vec<MeasureId>,
@@ -323,7 +284,7 @@ impl<RootId: Copy> MultiIdsQuery<RootId> {
     fn new(root_id: RootId, years: YearSpan) -> Self {
         Self {
             root_id,
-            years: YearsRangeQuery::from_span(years),
+            years,
             i_ids: Vec::new(),
             m1_ids: Vec::new(),
             m2_ids: Vec::new(),
@@ -364,7 +325,7 @@ impl<RootId: Copy> MultiIdsQuery<RootId> {
 
     #[inline]
     fn years(&self) -> YearSpan {
-        self.years.span()
+        self.years
     }
 
     #[inline]
@@ -420,6 +381,7 @@ impl Serialize for YearsExQuery<'_> {
         seq.end()
     }
 }
+
 fn serialize_multi_ids_query<S, RootId>(
     serializer: S,
     root_key: &'static str,
