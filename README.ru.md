@@ -6,16 +6,16 @@
 [![crates.io](https://img.shields.io/crates/v/cbr-client.svg)](https://crates.io/crates/cbr-client)
 [![docs.rs](https://docs.rs/cbr-client/badge.svg)](https://docs.rs/cbr-client)
 
-An unofficial Rust client for the [Bank of Russia Statistical Data Service API](https://www.cbr.ru/statistics/data-service/APIdocumentation/).
+Неофициальная Rust-библиотека для работы с [API сервиса статистических данных Банка России](https://www.cbr.ru/statistics/data-service/APIdocumentation/).
 
-## Installation
+## Установка
 
 ```toml
 [dependencies]
 cbr-client = "0.1.1"
 ```
 
-## Async example
+## Асинхронный пример
 
 ```rust
 use cbr_client::{CategoryId, CbrClient, DataNewQuery, IndicatorId, Year, YearSpan};
@@ -37,9 +37,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## Blocking example
+## Блокирующий пример
 
-Enable the `blocking` feature:
+Включите feature `blocking`:
 
 ```toml
 [dependencies]
@@ -65,14 +65,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## USD/RUB time series
+## Временной ряд USD/RUB
 
-See `examples/usd_rub_time_series.rs` for a complete example. The `cbr_client::presets::fx` module provides:
+Полный пример находится в `examples/usd_rub_time_series.rs`. Модуль `cbr_client::presets::fx` предоставляет:
 
-- Constant presets (`SeriesPreset`)
-- Runtime resolvers: `resolve_fx_series(client, FxPeriodicity, FxMetric)` and `resolve_fx_series_blocking(...)` (with the `blocking` feature)
+- Константные пресеты (`SeriesPreset`)
+- Runtime-резолверы: `resolve_fx_series(client, FxPeriodicity, FxMetric)` и `resolve_fx_series_blocking(...)` (с feature `blocking`)
 
-## Client configuration
+## Настройка клиента
 
 ```rust
 use std::time::Duration;
@@ -86,9 +86,9 @@ let client = CbrClient::builder()
     .build()?;
 ```
 
-## Custom response types
+## Пользовательские типы ответов
 
-Both clients provide generic `request_json<T>(path)` and `request_json_with_query<T, Q>(path, &query)` methods for deserializing responses directly into custom types. Paths are relative to `base_url`; the leading `/` is optional.
+Оба клиента предоставляют обобщённые методы `request_json<T>(path)` и `request_json_with_query<T, Q>(path, &query)` для десериализации ответов непосредственно в пользовательские типы. Пути задаются относительно `base_url`; ведущий `/` необязателен.
 
 ```rust
 use cbr_client::CbrClient;
@@ -114,14 +114,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## Proxy
+## Прокси
 
 ```rust
 use cbr_client::CbrClient;
 
 let client = CbrClient::builder()
     .proxy("http://127.0.0.1:8080")
-    // Use proxy settings from environment variables:
+    // Использовать настройки прокси из переменных окружения:
     // .use_system_proxy(true)
     .build()?;
 ```
